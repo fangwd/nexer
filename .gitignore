@@ -1,0 +1,10 @@
+build/
+.vscode/
+*.dSYM/
+*.o
+*.output
+*.node
+*.swp
+*.bak
+.DS_Store
+node_modules/
