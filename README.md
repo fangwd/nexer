@@ -1,4 +1,4 @@
-Nexer is a TCP traffic forward capable of automatically starting "preamble" processes (such as ssh).
+Nexer is a TCP traffic forwarder capable of automatically starting "preamble" processes (such as ssh tunneling).
 
 This is still work in progress.
 
