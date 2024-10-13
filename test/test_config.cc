@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "nexer.h"
 #include <assert.h>
 

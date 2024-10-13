@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "http_message.h"
 #include "http_server.h"
 

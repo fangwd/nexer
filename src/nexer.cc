@@ -1,6 +1,8 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "nexer.h"
+#include "tcp_forwarder.h"
+#include "udp_server.h"
+#include <assert.h>
+
 namespace nexer {
 
 Nexer::Nexer(Config& config) : config_(config), admin_server_(nullptr) {
@@ -38,6 +40,12 @@ bool Nexer::Start() {
         }
         proxies_.push_back(&proxy);
     }
+    for (auto& config: config_.dummies()) {
+        if (!StartDummyServer(config)) {
+            // TODO: close gracefully
+            return false;
+        }
+    }
     loop_.Run();
     return true;
 }
@@ -50,6 +58,35 @@ void Nexer::Close() {
     if (admin_server_) {
         admin_server_->Close();
         admin_server_ = nullptr;
+    }
+}
+
+bool StartDummyTcpServer(EventLoop& loop, int port, bool echo) {
+    auto& server = TcpServer::Create(loop);
+    if (echo) {
+        server.OnConnection([&](TcpClient& client) {
+            TcpForwarder::Create(client, client);
+        });
+    }
+    return server.Listen(port);
+}
+
+bool StartDummyUdpServer(EventLoop& loop, int port, bool echo) {
+    auto& server = UdpServer::Create(loop);
+    server.OnRecv([&](const char* s, size_t len, const struct sockaddr*) {
+        log_debug("DD: %.*s", (int)len, s);
+    });
+    return server.Listen(port);
+}
+
+bool Nexer::StartDummyServer(config::Dummy& config) {
+    switch(config.type) {
+    case config::Dummy::Type::Udp:
+        return StartDummyUdpServer(loop_, config.port, config.echo);
+    case config::Dummy::Type::Tcp:
+        return StartDummyTcpServer(loop_, config.port, config.echo);
+    default:
+        assert(0);
     }
 }
 

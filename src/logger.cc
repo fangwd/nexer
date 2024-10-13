@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "logger.h"
 
 #include <fcntl.h>
@@ -14,7 +12,7 @@ Logger::Logger(const char *filename, Logger::Level level) {
 
 int Logger::open(const char *filename, Logger::Level level) {
     int error = 0;
-    if (filename) {
+    if (filename && *filename) {
         if ((fd_ = ::open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644)) == -1) {
             fd_ = 2;
             error = 1;

@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "config.h"
 #include "jsini.hpp"
 
@@ -10,7 +8,6 @@
 namespace nexer {
 
 Config::Config() {
-    logger_.file = "nexer.log";
     logger_.level = Logger::Level::INFO;
     admin_.port = DEFAULT_ADMIN_PORT;
 }
@@ -60,6 +57,14 @@ class ConfigParser {
     inline bool Parse(jsini::Value &src, int &dst) {
         if (src.type() == JSINI_TINTEGER) {
             dst = (int)src;
+            return true;
+        }
+        return false;
+    }
+
+    inline bool Parse(jsini::Value &src, bool &dst) {
+        if (src.type() == JSINI_TBOOL) {
+            dst = (bool)src;
             return true;
         }
         return false;
@@ -119,8 +124,10 @@ class ConfigParser {
                 ok = Parse(value, config_.proxies_);
             } else if (key == "apps") {
                 ok = Parse(value, config_.apps_);
+            } else if (key == "dummy") {
+                ok = Parse(value, config_.dummies_);
             } else {
-                log_error("Unknown config entry: %s (line %u)", (const char *) key, key.lineno());
+                log_error("Unknown config entry: %s (line %u)", (const char *)key, key.lineno());
             }
             return ok;
         });
@@ -195,6 +202,10 @@ class ConfigParser {
             } else if (key == "port") {
                 if (!(ok = Parse(value, upstream.port))) {
                     Error(value, "upstream port", JSINI_TINTEGER);
+                }
+            } else if (key == "connect_timeout") {
+                if (!(ok = Parse(value, upstream.connect_timeout))) {
+                    Error(value, "upstream connect timeout", JSINI_TINTEGER);
                 }
             } else if (key == "app") {
                 if (!(ok = ((upstream.app = ParseApp(value)) != nullptr))) {
@@ -300,6 +311,54 @@ class ConfigParser {
             }
             return ok;
         });
+    }
+
+    bool Parse(jsini::Value &value, std::vector<config::Dummy> &dummies) {
+        return Parse(value, "dummies", [&](jsini::Value &value) {
+            dummies.emplace_back();
+            return Parse(value, dummies.back());
+        });
+    }
+
+    bool Parse(jsini::Value &value, config::Dummy &dummy) {
+        return Parse(value, "dummy", [&](ConfigKey &key, jsini::Value &value) {
+            bool ok = false;
+            if (key == "type") {
+                ok = Parse(value, dummy.type);
+            } else if (key == "listen") {
+                if (!(ok = Parse(value, dummy.port))) {
+                    Error(value, "dummy server port", JSINI_TINTEGER);
+                }
+            } else if (key == "echo") {
+                if (!(ok = Parse(value, dummy.echo))) {
+                    Error(value, "admin port", JSINI_TINTEGER);
+                }
+            } else {
+                Error(key, "dummy");
+            }
+            return ok;
+        });
+    }
+
+    bool Parse(jsini::Value &value, config::Dummy::Type &protocol) {
+        if (!value.is_string()) {
+            Error(value, "dummy server protocol", JSINI_TSTRING);
+            return false;
+        }
+        if (value == "tcp") {
+            protocol = config::Dummy::Type::Tcp;
+            return true;
+        }
+        if (value == "udp") {
+            protocol = config::Dummy::Type::Udp;
+            return true;
+        }
+        if (value == "http") {
+            return true;
+            protocol = config::Dummy::Type::Http;
+        }
+        log_error("Unknown dummy server protocol: %s (line %u)", (const char *)value, value.lineno());
+        return false;
     }
 };
 

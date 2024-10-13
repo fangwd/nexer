@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "runner.h"
 #include "process.h"
 #include "logger.h"
@@ -11,17 +9,27 @@ char exename[sizeof exename];
 
 void TestProcess();
 void TestProcessManager();
+void TestHttpServer();
 void TestTimer();
 void TestTcpClient();
+void TestTcpProxy();
 void TestTcpServer();
+void TestUdpServer();
+void TestAsyncWork();
 void TestConfig();
+void TestMemoryPool();
 
 Task tasks[] = {
+    {"async-work", TestAsyncWork},
     {"config", TestConfig},
+    {"http-server", TestHttpServer},
+    {"memory-pool", TestMemoryPool},
     {"process", TestProcess},
     {"process-manager", TestProcessManager},
     {"tcp-client", TestTcpClient},
+    {"tcp-proxy", TestTcpProxy},
     {"tcp-server", TestTcpServer},
+    {"udp-server", TestUdpServer},
     {"timer", TestTimer},
     {nullptr, nullptr},
 };

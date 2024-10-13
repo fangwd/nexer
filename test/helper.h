@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_TEST_HELPER_H_
 #define NEXER_TEST_HELPER_H_
 
@@ -11,6 +9,8 @@
 #include <map>
 
 #define DEFAULT_EXIT_CODE 127
+
+#define NEXER_TEST_DB "nexer-test.db"
 
 namespace nexer {
 namespace test {

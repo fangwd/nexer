@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_TEST_RUNNER_H_
 #define NEXER_TEST_RUNNER_H_
 

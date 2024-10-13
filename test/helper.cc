@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include <assert.h>
 #include <unistd.h>
 
@@ -236,12 +234,10 @@ int RunHelper(const char* name, int argc, char** argv) {
 
 namespace db {
 
-#define DB_NAME "nexer-test.db"
-
 Database::Database() : db_(nullptr) {
-    auto error = sqlite3_open(DB_NAME, &db_);
+    auto error = sqlite3_open(NEXER_TEST_DB, &db_);
     if (error != 0) {
-        log_error("Failed to open %s: %s", DB_NAME, sqlite3_errstr(error));
+        log_error("Failed to open %s: %s", NEXER_TEST_DB, sqlite3_errstr(error));
     } else {
         sqlite3_busy_timeout(db_, 5000);
         if (table_count() == 0) {
@@ -426,10 +422,34 @@ std::map<std::string, std::string> Database::scenarios_ = {
         )sql",
     },
     {
+        "simple-check",
+        R"sql(
+            insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
+            values ("simple-check", "a", 0, "a", 0, 0),
+                   ("simple-check", "b", 0, "b", 0, 0)
+        )sql",
+    },
+    {
+        "simple-fail",
+        R"sql(
+            insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
+            values ("simple-fail", "a", 0, "a", 0, 1)
+        )sql",
+    },
+    {
         "simple-with-sleep",
         R"sql(
             insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
             values ("simple-with-sleep", "a", 0, "a", 500, 0)
+        )sql",
+    },
+    {
+        "simple-with-sleep-fail",
+        R"sql(
+            insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
+            values ("simple-with-sleep-fail", "a", 0, "a", 0,   0),
+                   ("simple-with-sleep-fail", "b", 0, "b", 0,   1),
+                   ("simple-with-sleep-fail", "b", 1, "b", 500, 1)
         )sql",
     },
     {
@@ -570,6 +590,7 @@ std::map<std::string, std::string> Database::scenarios_ = {
 
 void SetScenario(const char *name) {
     db::Database db;
+    log_debug("-------------------- Scenario %s --------------------", name);
     db.SetScenario(name);
 }
 

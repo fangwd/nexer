@@ -67,9 +67,11 @@ set(jsini_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/deps/jsini/include CACHE INTERNAL "")
 set(jsini_LIBRARIES ${CMAKE_SOURCE_DIR}/deps/jsini/libjsini.a CACHE INTERNAL "")
 
 add_library(nex STATIC
+    src/async_work.cc
     src/config.cc
     src/event_loop.cc
     src/handle.cc
+    src/http_client.cc
     src/http_message.cc
     src/http_server.cc
     src/logger.cc
@@ -77,8 +79,10 @@ add_library(nex STATIC
     src/process.cc
     src/process_manager.cc
     src/tcp_client.cc
+    src/tcp_forwarder.cc
     src/tcp_proxy.cc
     src/tcp_server.cc
+    src/udp_server.cc
     src/timer.cc
     src/url.cc
 )
@@ -95,7 +99,7 @@ target_include_directories(nex
   ${jsini_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
 )
-target_link_libraries(nex PRIVATE ${llhttp_LIBRARIES} ${libuv_LIBRARIES} ${jsini_LIBRARIES})
+target_link_libraries(nex PRIVATE ${llhttp_LIBRARIES} ${libuv_LIBRARIES} ${jsini_LIBRARIES} curl)
 
 set(CMAKE_INSTALL_INCLUDEDIR include)
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -108,11 +112,16 @@ list(APPEND test_sources
   test/main.cc
   test/helper.cc
   test/runner.cc
+  test/test_async_work.cc
   test/test_config.cc
+  test/test_http_server.cc
+  test/test_memory_pool.cc
   test/test_process.cc
   test/test_process_manager.cc
   test/test_tcp_client.cc
+  test/test_tcp_proxy.cc
   test/test_tcp_server.cc
+  test/test_udp_server.cc
   test/test_timer.cc
 )
 

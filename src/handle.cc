@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "handle.h"
 #include "logger.h"
 
@@ -7,19 +5,16 @@ namespace nexer {
 
 void Handle::OnClose(uv_handle_t *handle) {
     auto self = static_cast<Handle *>(handle->data);
-    if (self->on_close_) {
-        self->on_close_();
+    self->on_close_.Invoke();
+    if (self->data_ && self->data_freer_) {
+        self->data_freer_();
     }
     delete self;
 }
 
 void Handle::OnError(const char *ctx, int err) {
     const char *errmsg =  uv_strerror(err);
-    if (on_error_) {
-        on_error_(err, errmsg);
-    } else {
-        log_error("%s: %s (%d)", ctx, errmsg, err);
-    }
+    on_error_.Invoke(err, errmsg);
 }
 
 void Handle::Close() {

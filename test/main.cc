@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "logger.h"
 #include "runner.h"
 #include "helper.h"
@@ -27,6 +25,8 @@ int main(int argc, char **argv) {
         }
         return RunHelper(argv[2], argc - 3, argc > 3 ? &argv[3] : nullptr);
     }
+
+    remove(NEXER_TEST_DB);
 
     return 0;
 }

@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "process.h"
 #include "string_buffer.h"
 #include <assert.h>

@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "process_manager.h"
 #include <sstream>
 
@@ -45,9 +43,13 @@ void ProcessManager::Start(App& app) {
             status = status ? status : signal;
             on_process_exit_.Invoke(&process, status, signal);
             app.process = nullptr;
-            if (app.restart) {
-                app.restart = false;
-                Start(app);
+            if (status != 0) {
+                if (app.restart) {
+                    app.restart = false;
+                    Start(app);
+                } else if (!app.config->checker) {
+                    ClearCallbacks(app, status);
+                }
             }
         });
 
@@ -109,7 +111,7 @@ void ProcessManager::Require(const config::App& config, AfterProcessCheck then) 
             if (config.checker || app.process != nullptr) {
                 ClearCallbacks(app, 0);
             } else {
-                log_debug("Starting %s on as no checker/process found", str(config));
+                log_debug("Starting %s as no checker/process found", str(config));
                 app.require_start_time = Timer::Now();
                 Start(app);
             }

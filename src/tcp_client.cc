@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "tcp_client.h"
 
 #include "logger.h"
@@ -70,9 +68,7 @@ void TcpClient::OnConnect(uv_connect_t *req, int status) {
     if (status) {
         client->OnError("connect", status);
     } else {
-        if (client->on_connect_) {
-            client->on_connect_();
-        }
+        client->on_connect_.Invoke();
         client->ReadStart();
     }
     free(req);
@@ -91,8 +87,8 @@ void TcpClient::OnRead(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) 
         } else {
             client->OnError("read", nread);
         }
-    } else if (client->on_data_) {
-        client->on_data_(buf->base, nread);
+    } else {
+        client->on_data_.Invoke(buf->base, nread);
     }
     free(buf->base);
 }
@@ -103,8 +99,8 @@ void TcpClient::OnWrite(uv_write_t *req, int status) {
     delete request;
     if (status) {
         client->OnError("write", status);
-    } else if (client->on_send_) {
-        client->on_send_();
+    } else {
+        client->on_send_.Invoke();
     }
 }
 
@@ -113,8 +109,8 @@ void TcpClient::OnWrite2(uv_write_t *req, int status) {
     free(req);
     if (status) {
         client->OnError("write", status);
-    } else if (client->on_send_) {
-        client->on_send_();
+    } else {
+        client->on_send_.Invoke();
     }
 }
 
@@ -191,48 +187,68 @@ void TcpClient::Write(uv_buf_t *buf, size_t len) {
     }
 }
 
+struct TryConnectData {
+    TcpClient *client;
+    FunctionList<void>::Remove unsub_onconnect;
+    FunctionList<void, int, const char *>::Remove unsub_onerror;
+    FunctionList<void>::Remove unsub_onclose;
+    ~TryConnectData() {
+        if (client) {
+            unsub_onconnect();
+            unsub_onerror();
+            unsub_onclose();
+        }
+    }
+};
+
 void TcpClient::Connect(EventLoop &loop, const char *host, int port, uint64_t timeout,
-                        std::function<void(TcpClient*)> then, std::function<void(TcpClient&)> on_try) {
-    nexer::Timer &timer = nexer::Timer::Create(loop, 1000);
+                        std::function<void(TcpClient *)> then, std::function<void(TcpClient &)> on_try) {
+    nexer::Timer &timer = nexer::Timer::Create(loop, 500);
+    timer.SetData(new TryConnectData(), [&] { delete (TryConnectData *)timer.data(); });
     auto connect = [&loop, &timer, host, port, then, on_try] {
-        auto& client = TcpClient::Create(loop);
-        client.OnConnect([&timer, host, port, then] {
+        auto data = reinterpret_cast<TryConnectData *>(timer.data());
+        auto &client = TcpClient::Create(loop);
+        data->unsub_onconnect = client.OnConnect([&timer, host, port, then] {
             log_debug("tcp_client: connected to %s:%d", host, port);
+            auto data = reinterpret_cast<TryConnectData *>(timer.data());
             timer.Close();
-            auto client = (TcpClient*)timer.data();
-            then(client);
+            then(data->client);
         });
-        client.OnError([&timer, host, port](int err, const char *msg) {
+        data->unsub_onerror = client.OnError([&timer, host, port](int err, const char *msg) {
             log_debug("tcp_client: failed to connect to %s:%d (%s)", host, port, msg);
-            ((TcpClient*)timer.data())->Close();
+            auto data = reinterpret_cast<TryConnectData *>(timer.data());
+            data->client->Close();
         });
-        client.OnClose([&timer] {
-            timer.SetData(nullptr);
+        data->unsub_onclose = client.OnClose([&timer] {
+            auto data = reinterpret_cast<TryConnectData *>(timer.data());
+            data->client = nullptr;
         });
         if (on_try) {
             on_try(client);
         }
         client.Connect(host, port);
-        timer.SetData(&client);
+        data->client = &client;
     };
 
     timer.OnTick([&loop, &timer, timeout, then, connect, host, port] {
+        auto data = reinterpret_cast<TryConnectData *>(timer.data());
         if (timer.GetElapsedTime() >= timeout) {
-            auto client = (TcpClient*)timer.data();
-            if (client) {
-                client->Close();
+            if (data->client) {
+                data->client->Close();
+                data->client->OnClose([&] { log_debug("client closed!!!!"); });
             }
+            log_debug("tcp_client: connection timeout (%p)", data->client);
             timer.Close();
+            timer.OnClose([] { log_info("timer closed!!"); });
             then(nullptr);
         } else {
-            if (!timer.data()) {
+            if (!data->client) {
                 log_debug("tcp_client: connecting %s:%d", host, port);
                 connect();
             }
         }
     });
 
-    timer.SetData(nullptr);
     timer.Start();
 }
 

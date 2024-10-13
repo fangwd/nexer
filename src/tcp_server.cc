@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #include "tcp_server.h"
 
 #include "logger.h"
@@ -62,7 +60,7 @@ bool TcpServer::Listen(int port) {
     int backlog = 8;
 
     if ((err = uv_listen((uv_stream_t *)&tcp_, backlog, OnConnection))) {
-        log_error("listen: %s (%d)", uv_strerror(err), err);
+        log_error("listen: %s (port %d)", uv_strerror(err), port);
         return false;
     }
 
