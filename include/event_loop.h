@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_EVENT_LOOP_H_
 #define NEXER_EVENT_LOOP_H_
 

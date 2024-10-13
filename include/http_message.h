@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_HTTP_H_
 #define NEXER_HTTP_H_
 

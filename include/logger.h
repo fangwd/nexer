@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef _NEXER_LOGGER_H_
 #define _NEXER_LOGGER_H_
 

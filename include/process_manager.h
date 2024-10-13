@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_PROCESS_MANAGER_H_
 #define NEXER_PROCESS_MANAGER_H_
 

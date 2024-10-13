@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_CONFIG_H_
 #define NEXER_CONFIG_H_
 
@@ -38,6 +36,7 @@ struct App {
 struct Upstream {
     std::string host;
     int port = 0;
+    int connect_timeout = 30000;
     const App *app;
     std::vector<std::string> tags;
 };
@@ -56,6 +55,17 @@ struct Logger {
     ::Logger::Level level = ::Logger::Level::INFO;
 };
 
+struct Dummy {
+    enum class Type {
+        Udp,
+        Tcp,
+        Http,
+    };
+    Type type = Type::Tcp;
+    int port = 0;
+    bool echo = false;
+};
+
 }  // namespace config
 
 class Config {
@@ -66,6 +76,8 @@ class Config {
     std::vector<config::App *> apps_;
     std::map<std::string, config::App *> app_map_;
 
+    std::vector<config::Dummy> dummies_;
+
     friend class ConfigParser;
 
   public:
@@ -75,10 +87,21 @@ class Config {
     static bool ParseFile(Config &, const char *file);
     static bool Parse(Config &, const std::string &code);
 
-    inline auto& apps() { return apps_; }
-    inline auto& proxies() { return proxies_; }
-    inline auto& admin() { return admin_; }
-    inline auto& logger() { return logger_; }
+    inline auto& apps() {
+        return apps_;
+    }
+    inline auto& proxies() {
+        return proxies_;
+    }
+    inline auto& admin() {
+        return admin_;
+    }
+    inline auto& dummies() {
+        return dummies_;
+    }
+    inline auto& logger() {
+        return logger_;
+    }
 
     config::App *GetApp(const std::string &name);
 };

@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef _NEXER_URL_H
 #define _NEXER_URL_H
 

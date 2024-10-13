@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_TCP_SERVER_H_
 #define NEXER_TCP_SERVER_H_
 

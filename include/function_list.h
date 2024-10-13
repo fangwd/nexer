@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_FUNCTION_LIST_H_
 #define NEXER_FUNCTION_LIST_H_
 

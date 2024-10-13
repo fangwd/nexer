@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_PROCESS_H_
 #define NEXER_PROCESS_H_
 
@@ -71,11 +69,11 @@ class Process {
     int Input(const char *, size_t);
 
     inline auto OnData(std::function<void(int, const char *, size_t)> fn) {
-        on_data_.Add(fn);
+        return on_data_.Add(fn);
     }
 
     inline auto OnError(std::function<void(int)> fn) {
-        on_error_.Add(fn);
+        return on_error_.Add(fn);
     }
 
     inline auto OnExit(std::function<void(int64_t, int)> fn) {

@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_H_
 #define NEXER_H_
 
@@ -18,6 +16,7 @@ class Nexer : NonCopyable {
 
     http::Server *admin_server_;
     bool StartAdminServer();
+    bool StartDummyServer(config::Dummy&);
 
   public:
     Nexer(Config& config);

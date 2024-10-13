@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef STRING_BUFFER_H_
 #define STRING_BUFFER_H_
 

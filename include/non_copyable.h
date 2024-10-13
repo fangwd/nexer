@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_NON_COPYABLE_H_
 #define NEXER_NON_COPYABLE_H_
 

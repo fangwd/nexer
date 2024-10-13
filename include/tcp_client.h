@@ -1,9 +1,8 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_TCP_CLIENT_H_
 #define NEXER_TCP_CLIENT_H_
 
 #include "event_loop.h"
+#include "function_list.h"
 #include "handle.h"
 
 namespace nexer {
@@ -26,9 +25,9 @@ class TcpClient: public Handle {
     void GetAddrInfo(const char *node, const char *service);
     void ConnectAddr(const sockaddr *addr);
 
-    std::function<void()> on_connect_;
-    std::function<void()> on_send_;
-    std::function<void(const char*, size_t)> on_data_;
+    FunctionList<void> on_connect_;
+    FunctionList<void> on_send_;
+    FunctionList<void, const char *, size_t> on_data_;
 
     struct {
         unsigned connecting : 1;
@@ -45,16 +44,16 @@ class TcpClient: public Handle {
     static TcpClient& Create(EventLoop&);
     static TcpClient& Create(uv_loop_t*);
 
-    inline void OnConnect(std::function<void()> fn) {
-        on_connect_ = fn;
+    inline auto OnConnect(std::function<void()> fn) {
+        return on_connect_.Add(fn);
     }
 
-    inline void OnData(std::function<void(const char*, size_t)> fn) {
-        on_data_ = fn;
+    inline auto OnData(std::function<void(const char*, size_t)> fn) {
+        return on_data_.Add(fn);
     }
 
-    inline void OnSend(std::function<void()> fn) {
-        on_send_ = fn;
+    inline auto OnSend(std::function<void()> fn) {
+        return on_send_.Add(fn);
     }
 
     void Connect(const char *host, int port);

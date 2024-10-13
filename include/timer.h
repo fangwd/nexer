@@ -1,5 +1,3 @@
-/* Copyright (c) Weidong Fang. All rights reserved. */
-
 #ifndef NEXER_TIMER_H_
 #define NEXER_TIMER_H_
 
