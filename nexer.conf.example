@@ -1,0 +1,95 @@
+{
+  "logger": {
+    "level": "INFO"
+  },
+  "admin": {
+    "enabled": true,
+    "bind": "127.0.0.1",
+    "port": 8301,
+    "auth_token_env": "NEXER_ADMIN_TOKEN"
+  },
+  "apps": [
+    {
+      "name": "postgres",
+      "type": "external",
+      "command": {
+        "file": "docker",
+        "args": [
+          "compose",
+          "up",
+          "-d",
+          "postgres"
+        ],
+        "cwd": "."
+      },
+      "stop_command": {
+        "file": "docker",
+        "args": [
+          "compose",
+          "stop",
+          "postgres"
+        ],
+        "cwd": "."
+      },
+      "checker": {
+        "file": "nc",
+        "args": [
+          "-z",
+          "127.0.0.1",
+          "5432"
+        ],
+        "timeout": 1000
+      },
+      "max_start_time": 60000
+    },
+    {
+      "name": "api",
+      "command": {
+        "file": "npm",
+        "args": [
+          "run",
+          "dev"
+        ],
+        "cwd": "./api"
+      },
+      "checker": {
+        "file": "nc",
+        "args": [
+          "-z",
+          "127.0.0.1",
+          "3001"
+        ],
+        "timeout": 1000
+      },
+      "depends_on": [
+        "postgres"
+      ],
+      "max_start_time": 60000
+    },
+    {
+      "name": "web",
+      "command": {
+        "file": "npm",
+        "args": [
+          "run",
+          "dev"
+        ],
+        "cwd": "./web"
+      },
+      "checker": {
+        "file": "nc",
+        "args": [
+          "-z",
+          "127.0.0.1",
+          "3000"
+        ],
+        "timeout": 1000
+      },
+      "depends_on": [
+        "api"
+      ],
+      "auto_start": true,
+      "max_start_time": 60000
+    }
+  ]
+}
