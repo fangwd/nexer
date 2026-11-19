@@ -127,9 +127,9 @@ int Nexer::run() {
 
     for (auto &config : config_.proxies()) {
         auto proxy = TcpProxy::create(
-            loop_, config.upstream, process_manager_,
+            loop_, config, process_manager_,
             static_cast<size_t>(config_.forwarder().max_buffer_bytes));
-        if (!proxy->Listen(config.port)) {
+        if (!proxy->Listen(config.bind, config.port)) {
             proxy->close();
             close();
             return 1;
@@ -326,6 +326,9 @@ void Nexer::finish_startup(uint64_t elapsed_ms) {
     } else {
         log_info("nexer: ready (%zu apps in %llums)", required_apps_.size(),
                  (unsigned long long)elapsed_ms);
+    }
+    if (on_ready_) {
+        on_ready_();
     }
 }
 

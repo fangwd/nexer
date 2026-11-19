@@ -53,6 +53,11 @@ Nexer starts the API before the web app and stays in the foreground. Ctrl-C or
 SIGTERM shuts down owned processes and their descendants. Startup failures
 clean up and exit 1. Duplicate instances using the same config are rejected.
 
+`nexer --daemon` (`-d`) returns once startup succeeds and keeps running in the
+background; a startup failure, or an interrupt before then, stops it and exits
+1. Output from Nexer and its apps then goes to `logger.file` (discarded if
+unset); stop it with `nexer shutdown`.
+
 See [nexer.conf.example](nexer.conf.example) for a Docker Compose/PostgreSQL
 example. Adjust project paths, commands, and ports before using either config.
 
@@ -69,10 +74,11 @@ In another terminal, set the same `NEXER_ADMIN_TOKEN` and use the same config:
 ./build/nexer shutdown
 ```
 
-Controls require the admin listener; `validate` only parses the config and
-starts nothing. `--wait` waits for the operation result and exits nonzero on
-failure. A deliberate stop blocks automatic restarts and proxy-triggered
-starts until an explicit start or restart.
+Controls require the admin listener. `validate` only parses the config and
+starts nothing; `running` exits 0 while an instance runs for the config.
+`--wait` waits for the operation result and exits nonzero on failure. A
+deliberate stop blocks automatic restarts and proxy-triggered starts until an
+explicit start or restart.
 
 Use `--config /path/to/nexer.conf` **before** the command to select another
 config. Otherwise Nexer searches `./nexer.conf`, then
@@ -116,6 +122,86 @@ Log tails and audit history are in memory. App output can also go to rotating
 files; create log directories beforehand. Files append across restarts and
 rotate at the configured size. Optional root sections include `proxies`,
 `logger`, `http`, and `forwarder`; see the [configuration types](runtime/include/nexer/runtime/config.h).
+
+## Proxies
+
+A proxy listens on `bind` (default `127.0.0.1`) and `listen`, and connects
+each client to the first usable entry of `upstreams`, skipping those whose
+`app` is not ready. When none connects, each app is required (started if
+needed) in order, so `nexer stop <app>` moves new connections to the next
+upstream. Checkers are not re-run per connection: an app is required again,
+re-running its checker, only when no upstream served the client and its own
+failed to connect or stalled the SOCKS handshake. A failing checker restarts
+the app under its `restart` policy, and the waiting client is served by the
+new instance. A stalled upstream whose checker passes is not retried, and an
+app that hangs but still accepts connections keeps receiving clients.
+
+`protocol: 'tcp'` (default) forwards bytes as-is. `protocol: 'http+socks'`
+serves HTTP proxy clients (CONNECT and `http://` requests) over SOCKS5
+upstreams without authentication, such as `ssh -D` or Tor. An upstream that
+refuses or stalls the handshake for `connect_timeout` ms is skipped, and a
+client that sends no request within 10 s is disconnected. SOCKS clients are
+passed through, so the upstream must speak their version (`ssh -D` speaks 4,
+4a and 5). A forwarded `http://` connection carries one request; anything
+sent after it is dropped. This example keeps two SSH tunnels up and fails
+over between them:
+
+```json
+{
+  "apps": [
+    {
+      "name": "tunnel-a",
+      "command": { "file": "ssh", "args": ["-N", "-D", "127.0.0.1:1080",
+        "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes",
+        "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2",
+        "user@host-a"] },
+      "checker": { "file": "nc", "args": ["-z", "127.0.0.1", "1080"] },
+      "auto_start": true,
+      "restart": { "policy": "on_failure", "max_retries": 10 }
+    },
+    {
+      "name": "tunnel-b",
+      "command": { "file": "ssh", "args": ["-N", "-D", "127.0.0.1:1081",
+        "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes",
+        "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2",
+        "user@host-b"] },
+      "checker": { "file": "nc", "args": ["-z", "127.0.0.1", "1081"] },
+      "auto_start": true,
+      "restart": { "policy": "on_failure", "max_retries": 10 }
+    }
+  ],
+  "proxies": [
+    {
+      "listen": 9080,
+      "protocol": "http+socks",
+      "upstreams": [
+        { "host": "127.0.0.1", "port": 1080, "app": "tunnel-a" },
+        { "host": "127.0.0.1", "port": 1081, "app": "tunnel-b" }
+      ]
+    }
+  ]
+}
+```
+
+Run it with `nexer -d` and point clients at it, e.g.
+`HTTPS_PROXY=http://127.0.0.1:9080` or `curl --socks5-hostname 127.0.0.1:9080`.
+A lower `connect_timeout` (default 30000 ms) fails over faster.
+
+For Tor, use a `tor` app as the upstream. Tor opens its SOCKS port before it
+can build circuits, so check it with a real request rather than `nc -z`:
+
+```json
+{
+  "name": "tor",
+  "command": { "file": "tor", "args": ["--SocksPort", "127.0.0.1:9050"] },
+  "checker": { "file": "curl", "args": ["-sf", "-o", "/dev/null",
+    "--max-time", "10", "--socks5-hostname", "127.0.0.1:9050",
+    "https://check.torproject.org/api/ip"], "timeout": 15000 },
+  "auto_start": true,
+  "max_start_time": 60000,
+  "restart": { "policy": "on_failure" }
+}
+```
 
 ## HTTP API and server use
 

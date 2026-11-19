@@ -107,10 +107,13 @@ struct Runtime {
         file.close();
     }
 
-    void Start() {
+    void Start(const std::vector<std::string> &args = {}) {
         process = Process::create(loop, "./build/nexer");
         process->push_arg("--config");
         process->push_arg(config_path.c_str());
+        for (auto &arg : args) {
+            process->push_arg(arg.c_str());
+        }
         process->on_data(
             [this](int, const char *s, size_t len) { output.append(s, len); });
         process->on_exit([this](int64_t code, int signal) {
@@ -299,7 +302,8 @@ static void should_drain_proxy_connections_within_grace() {
     int echo_port = PickFreePort();
     std::ostringstream root;
     root << "proxies: [{ listen: " << proxy_port
-         << ", upstream: { host: '127.0.0.1', port: " << echo_port << " } }],\n"
+         << ", upstreams: [{ host: '127.0.0.1', port: " << echo_port
+         << " }] }],\n"
          << "  dummy: [{ type: tcp, listen: " << echo_port << ", echo: true }]";
     Runtime runtime(TreeApp("a"), root.str(),
                     "default_grace_ms: 2000, force_after_ms: 300");
@@ -596,6 +600,70 @@ static void should_run_one_instance_per_config() {
     assert(second.exit_code == 0);
 }
 
+// The launching command returns once startup succeeds; the instance keeps
+// running with its output in logger.file.
+static void should_run_in_the_background() {
+    Runtime runtime(TreeApp("a"));
+    assert(RunCli(runtime.config_path, {"running"}).code == 1);
+    auto launch = RunCli(runtime.config_path, {"--daemon"});
+    assert(launch.code == 0);
+    int pid = ParsePid(launch.output, "background (pid ");
+    assert(pid > 0);
+    assert(launch.output.find("child=") == std::string::npos);
+    assert(runtime.Status("GET", "/admin/readyz") == 200);
+    assert(runtime.RunUntil(
+        [&] { return runtime.LogText().find("child=") != std::string::npos; }));
+
+    auto duplicate = RunCli(runtime.config_path, {"-d"});
+    assert(duplicate.code == 1);
+    assert(duplicate.output.find("already running") != std::string::npos);
+    assert(RunCli(runtime.config_path, {"running"}).code == 0);
+
+    assert(RunCli(runtime.config_path, {"shutdown"}).code == 0);
+    assert(runtime.RunUntil([&] { return ProcessGone(pid); }));
+    assert(RunCli(runtime.config_path, {"running"}).code == 1);
+}
+
+// A startup failure is reported by the launching command.
+static void should_fail_background_startup_in_the_foreground() {
+    Runtime runtime("{ name: broken, command: { file: ./build/does-not-exist "
+                    "}, auto_start: true }");
+    auto launch = RunCli(runtime.config_path, {"--daemon"});
+    assert(launch.code == 1);
+    assert(launch.output.find("background") == std::string::npos);
+
+    assert(RunCli(runtime.config_path, {"--daemon", "status"}).code == 1);
+}
+
+// Interrupting the launching command before startup succeeds stops the
+// background instance too.
+static void should_stop_a_background_launch_on_interrupt() {
+    std::string app = "{ name: a, command: { file: '" + RunTestsPath() +
+                      "', args: [helper, tree] }, checker: { file: '" +
+                      RunTestsPath() +
+                      "', args: [helper, sleep], env: [NAME=never] }, "
+                      "auto_start: true }";
+    Runtime runtime(app);
+    runtime.Start({"--daemon"});
+    assert(runtime.WaitOutput("child="));
+    assert(runtime.Status("GET", "/admin/healthz") == 200);
+
+    assert(kill(runtime.pid, SIGINT) == 0);
+    assert(runtime.WaitExit());
+    assert(runtime.exit_code == 1);
+    AssertTreeGone(runtime);
+    // A raw probe: HttpClient would report the refused connect on stderr.
+    int probe = socket(AF_INET, SOCK_STREAM, 0);
+    assert(probe >= 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(runtime.admin_port);
+    assert(inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) == 1);
+    assert(connect(probe, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) !=
+           0);
+    close(probe);
+}
+
 void TestRuntime() {
     // Keep instance lock files out of the user's state directory.
     TempDir locks("nexer-locks");
@@ -617,6 +685,9 @@ void TestRuntime() {
     should_not_launch_later_roots_after_startup_failure();
     should_exit_one_on_startup_timeout();
     should_report_readiness_after_checker_passes();
+    should_run_in_the_background();
+    should_fail_background_startup_in_the_foreground();
+    should_stop_a_background_launch_on_interrupt();
 }
 
 } // namespace test

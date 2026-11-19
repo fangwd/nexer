@@ -92,6 +92,17 @@ bool InstanceLock::acquire(const std::string &config_path, std::string &error) {
     return true;
 }
 
+bool InstanceLock::running(const std::string &config_path) {
+    int fd = open(lock_path(config_path).c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return false;
+    }
+    // A shared probe: fails only while an instance holds the exclusive lock.
+    bool held = flock(fd, LOCK_SH | LOCK_NB) != 0 && errno == EWOULDBLOCK;
+    close(fd);
+    return held;
+}
+
 void InstanceLock::release() {
     if (fd_ >= 0) {
         close(fd_);

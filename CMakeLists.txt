@@ -195,6 +195,7 @@ add_library(nexer_runtime STATIC
   runtime/src/output_file.cc
   runtime/src/process.cc
   runtime/src/process_manager.cc
+  runtime/src/proxy_protocol.cc
   runtime/src/tcp_proxy.cc
 )
 add_dependencies(nexer_runtime jsini)
@@ -239,6 +240,7 @@ add_executable(run_tests
   tests/test_memory_pool.cc
   tests/test_process.cc
   tests/test_process_manager.cc
+  tests/test_proxy_protocol.cc
   tests/test_runtime.cc
   tests/test_startup_rollback.cc
   tests/test_string_buffer.cc

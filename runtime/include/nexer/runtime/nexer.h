@@ -9,6 +9,7 @@
 #include "nexer/runtime/config.h"
 #include "nexer/runtime/process_manager.h"
 #include "nexer/runtime/tcp_proxy.h"
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -58,6 +59,7 @@ class Nexer : public AdminRuntime, NonCopyable {
     bool shutting_down_ = false;
     bool loop_running_ = false;
     int exit_code_ = 0;
+    std::function<void()> on_ready_;
 
     bool start_dummy_server(config::Dummy &);
     bool install_signal_handlers();
@@ -81,6 +83,11 @@ class Nexer : public AdminRuntime, NonCopyable {
     // completes and returns the process exit code: 0 after a requested
     // shutdown, 1 after a startup failure or incomplete cleanup.
     int run();
+
+    // Called once when startup succeeds.
+    inline void on_ready(std::function<void()> fn) {
+        on_ready_ = std::move(fn);
+    }
 
     // Asynchronous, idempotent shutdown shared by signals and the admin API.
     // Returns false when a shutdown is already in progress.

@@ -83,8 +83,14 @@ struct Upstream {
 };
 
 struct Proxy {
+    // tcp: forward bytes as-is. http_socks: accept HTTP (CONNECT and
+    // absolute-form) and SOCKS clients; upstreams must be SOCKS5 servers.
+    enum class Protocol { Tcp, HttpSocks };
+    Protocol protocol = Protocol::Tcp;
+    std::string bind = "127.0.0.1";
     int port = 0;
-    Upstream upstream;
+    // Tried in order; see TcpProxy::route.
+    std::vector<Upstream> upstreams;
 };
 
 struct Logger {

@@ -28,7 +28,7 @@ std::string sample_config_no_checker = R"conf({
     proxies: [
       {
         listen: 19500,
-        upstream: {
+        upstreams: [{
             host: '127.0.0.1',
             port: 19501,
             app: {
@@ -40,7 +40,7 @@ std::string sample_config_no_checker = R"conf({
                 }
                 max_start_time: 300
             }
-        }
+        }]
       }
     ]
 })conf";
@@ -52,7 +52,7 @@ static void should_start_process_without_checker() {
 
     SetScenario("simple-with-sleep");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
     std::string output;
@@ -96,7 +96,7 @@ static void should_report_ready_on_spawn_without_checker() {
 
     SetScenario("simple");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
 
@@ -125,7 +125,7 @@ std::string sample_config_with_checker = R"conf({
     proxies: [
       {
         listen: 19500,
-        upstream: {
+        upstreams: [{
             host: '127.0.0.1',
             port: 19501,
             app: {
@@ -142,7 +142,7 @@ std::string sample_config_with_checker = R"conf({
                 }
                 max_start_time: 300
             }
-        }
+        }]
       }
     ]
 })conf";
@@ -154,7 +154,7 @@ static void should_wait_for_checker() {
 
     SetScenario("simple-check");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
     std::string output;
@@ -198,7 +198,7 @@ static void should_start_process_if_checker_fails() {
 
     SetScenario("simple-fail");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
     std::string output;
@@ -247,7 +247,7 @@ static void should_start_process_if_checker_crashes() {
 
     SetScenario("crash");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
     std::string output;
@@ -297,7 +297,7 @@ static void should_return_error_if_checker_fails_and_no_command() {
 
     SetScenario("simple-fail-check");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     // Config objects are const pointers in ProcessManager usage, but for test
     // setup we can cast.
@@ -339,7 +339,7 @@ static void should_invoke_checker_callback_once_on_spawn_failure() {
     Config config;
     assert(Config::parse(config, sample_config_with_checker));
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
     auto *app_mutable = const_cast<config::App *>(&app);
     if (app_mutable->checker) {
         app_mutable->checker->file = "./build/run_tests_DOES_NOT_EXIST";
@@ -382,7 +382,7 @@ std::string sample_config_preamble = R"conf({
     proxies: [
       {
         listen: 19500,
-        upstream: {
+        upstreams: [{
             host: '127.0.0.1',
             port: 19501,
             app: {
@@ -394,7 +394,7 @@ std::string sample_config_preamble = R"conf({
                 }
                 max_start_time: 300
             }
-        }
+        }]
       }
     ],
     apps: [
@@ -415,7 +415,7 @@ static void should_wait_for_preamble() {
     Config config;
     assert(Config::parse(config, sample_config_preamble));
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
     // Find the preamble app in the apps list
     config::App *preamble = nullptr;
     for (auto *a : config.apps()) {
@@ -464,7 +464,7 @@ static void should_fail_if_preamble_fails() {
     Config config;
     assert(Config::parse(config, sample_config_preamble));
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
     config::App *preamble = nullptr;
     for (auto *a : config.apps()) {
         if (a->name == "preamble_app") {
@@ -510,7 +510,7 @@ static void should_fail_if_preamble_crashes() {
     Config config;
     assert(Config::parse(config, sample_config_preamble));
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
     config::App *preamble = nullptr;
     for (auto *a : config.apps()) {
         if (a->name == "preamble_app") {
@@ -558,7 +558,7 @@ static void should_shutdown_reap_child_processes() {
 
     SetScenario("simple-with-sleep");
 
-    auto &app = *config.proxies()[0].upstream.app;
+    auto &app = *config.proxies()[0].upstreams[0].app;
 
     ProcessManager manager(loop);
 

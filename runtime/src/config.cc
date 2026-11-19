@@ -171,6 +171,12 @@ class ConfigParser {
                 return false;
             }
         }
+        for (auto &proxy : config_.proxies_) {
+            if (proxy.upstreams.empty()) {
+                log_error("Bad proxy (listen %d): no upstreams", proxy.port);
+                return false;
+            }
+        }
         if (!config_.config_dir_.empty()) {
             ResolvePaths();
         }
@@ -332,11 +338,31 @@ class ConfigParser {
     bool Parse(jsini::Value &value, config::Proxy &proxy) {
         return Parse(value, "proxy", [&](ConfigKey &key, jsini::Value &value) {
             bool ok = false;
-            if (key == "upstream") {
-                ok = Parse(value, proxy.upstream);
+            if (key == "upstreams") {
+                ok = Parse(value, "proxy upstreams", [&](jsini::Value &value) {
+                    proxy.upstreams.emplace_back();
+                    return Parse(value, proxy.upstreams.back());
+                });
             } else if (key == "listen") {
                 if (!(ok = Parse(value, proxy.port))) {
                     Error(value, "forward listening port", JSINI_TINTEGER);
+                }
+            } else if (key == "bind") {
+                if (!(ok = Parse(value, proxy.bind))) {
+                    Error(value, "proxy bind", JSINI_TSTRING);
+                }
+            } else if (key == "protocol") {
+                std::string protocol;
+                if (!(ok = Parse(value, protocol))) {
+                    Error(value, "proxy protocol", JSINI_TSTRING);
+                } else if (protocol == "tcp") {
+                    proxy.protocol = config::Proxy::Protocol::Tcp;
+                } else if (protocol == "http+socks") {
+                    proxy.protocol = config::Proxy::Protocol::HttpSocks;
+                } else {
+                    log_error("Unknown proxy protocol: %s (line %u)",
+                              protocol.c_str(), value.lineno());
+                    ok = false;
                 }
             } else {
                 Error(key, "proxy");

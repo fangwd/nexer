@@ -197,7 +197,7 @@ static void should_not_double_start_with_proxy() {
         }],
         proxies: [{
             listen: 19500,
-            upstream: { host: '127.0.0.1', port: 19501, app: a }
+            upstreams: [{ host: '127.0.0.1', port: 19501, app: a }]
         }]
     })conf";
     assert(Config::parse(config, code));
@@ -225,7 +225,7 @@ static void should_not_double_start_with_proxy() {
     }
 
     // Proxy-triggered require (simulating an incoming connection)
-    auto *upstream_app = config.proxies()[0].upstream.app;
+    auto *upstream_app = config.proxies()[0].upstreams[0].app;
     manager.Require(*upstream_app, [&](std::shared_ptr<Process>, int error) {
         assert(error == 0);
         require_count++;

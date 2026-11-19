@@ -51,18 +51,23 @@ static void TestParseUpstream() {
           "proxies": [
             {
               listen: 123,
+              upstreams: [{ port: 1 }],
             },
             {
-              upstream: {
-                port: 456,
-                tags: [abc, 123],
-                app: {
-                  command: {
-                    file: 'foo',
-                    args: [-x, 1, -1]
+              bind: '0.0.0.0',
+              upstreams: [
+                {
+                  port: 456,
+                  tags: [abc, 123],
+                  app: {
+                    command: {
+                      file: 'foo',
+                      args: [-x, 1, -1]
+                    }
                   }
-                }
-              }
+                },
+                { port: 789 },
+              ]
             },
           ]
         })json";
@@ -71,11 +76,37 @@ static void TestParseUpstream() {
     assert(Config::parse(config, code));
     auto &proxies = config.proxies();
     assert(proxies.size() == 2);
+    assert(proxies[0].bind == "127.0.0.1");
 
     auto &proxy = proxies[1];
-    assert(proxy.upstream.tags == std::vector<std::string>({"abc", "123"}));
-    // assert(proxy.upstream.command->args == std::vector<std::string>({"-x",
-    // "1", "-1"}));
+    assert(proxy.bind == "0.0.0.0");
+    assert(proxy.upstreams.size() == 2);
+    assert(proxy.upstreams[0].tags == std::vector<std::string>({"abc", "123"}));
+    assert(proxy.upstreams[0].app != nullptr);
+    assert(proxy.upstreams[1].port == 789);
+    assert(proxy.upstreams[1].app == nullptr);
+
+    Config empty;
+    assert(!Config::parse(empty, R"json({ proxies: [{ listen: 1 }] })json"));
+    Config old_key;
+    assert(!Config::parse(
+        old_key,
+        R"json({ proxies: [{ listen: 1, upstream: { port: 2 } }] })json"));
+}
+
+static void TestParseProxyProtocol() {
+    Config config;
+    assert(Config::parse(config, R"json({ proxies: [
+        { listen: 1, upstreams: [{ port: 2 }] },
+        { listen: 3, protocol: 'http+socks', upstreams: [{ port: 4 }] },
+    ] })json"));
+    assert(config.proxies()[0].protocol == config::Proxy::Protocol::Tcp);
+    assert(config.proxies()[1].protocol == config::Proxy::Protocol::HttpSocks);
+
+    Config unknown;
+    assert(!Config::parse(unknown, R"json({ proxies: [
+        { listen: 1, protocol: 'socks', upstreams: [{ port: 2 }] },
+    ] })json"));
 }
 
 static void TestApps() {
@@ -381,6 +412,7 @@ void TestConfig() {
     TestParseEmpty();
     TestParseLogger();
     TestParseUpstream();
+    TestParseProxyProtocol();
     TestApps();
     TestCommandCwdAndDummyHttp();
     TestHttpAndForwarderLimits();

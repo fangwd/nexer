@@ -58,9 +58,8 @@ void TestStartupRollback() {
 
     config::Proxy proxy;
     proxy.port = proxy_port;
-    proxy.upstream.host = "127.0.0.1";
-    proxy.upstream.port =
-        65535; // Never reached; avoids accidental success connections.
+    // Never reached; avoids accidental success connections.
+    proxy.upstreams.push_back({.host = "127.0.0.1", .port = 65535});
 
     config.proxies().push_back(proxy);
     config.proxies().push_back(proxy); // Duplicate port to force bind failure.

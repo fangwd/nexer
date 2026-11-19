@@ -24,6 +24,7 @@ class TcpForwarder : public std::enable_shared_from_this<TcpForwarder> {
     Client outgoing_;
     FunctionList<void> on_close_;
     size_t max_buffer_bytes_;
+    std::function<size_t(const char *, size_t)> incoming_filter_;
 
     void init(Client *client);
     void swap(Client *client);
@@ -56,6 +57,16 @@ class TcpForwarder : public std::enable_shared_from_this<TcpForwarder> {
 
     void set_outgoing(std::shared_ptr<TcpClient> client);
     void shutdown();
+
+    // Incoming bytes held until set_outgoing(); callers may edit them before.
+    inline std::string &pending() { return *incoming_.data_in; }
+
+    // Sees each later incoming chunk before it is buffered and returns how
+    // many of its leading bytes to keep; the rest is dropped.
+    inline void
+    set_incoming_filter(std::function<size_t(const char *, size_t)> filter) {
+        incoming_filter_ = std::move(filter);
+    }
 
     inline auto on_close(std::function<void()> fn) { return on_close_.add(fn); }
 

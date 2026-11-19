@@ -153,6 +153,41 @@ static void TestConnectDeadline() {
     assert(try_count > 1);
 }
 
+static void TestMaxAttempts() {
+    int port = PickFreePort();
+    assert(port > 0);
+
+    EventLoop loop;
+    int try_count = 0;
+    bool connected = false;
+    int callback_called = 0;
+
+    TcpConnectOptions opts{
+        .host = "127.0.0.1",
+        .port = port,
+        .deadline_ms = 5000,
+        .retry_interval_ms = 40,
+        .max_attempts = 1,
+    };
+
+    auto started = Timer::now();
+    auto connector = TcpConnector::create(
+        loop, std::move(opts),
+        [&](std::shared_ptr<TcpClient> client) {
+            connected = client != nullptr;
+            callback_called++;
+        },
+        [&](TcpClient &) { try_count++; });
+    (void)connector;
+
+    loop.run();
+
+    assert(!connected);
+    assert(callback_called == 1);
+    assert(try_count == 1);
+    assert(Timer::now() - started < 1000);
+}
+
 static void TestTimeoutReleasesGuard() {
     int port = PickFreePort();
     assert(port > 0);
@@ -292,13 +327,72 @@ static void TestRetryThenSuccess() {
     assert(try_count > 1);
 }
 
+// A retry tick between a completed connect and its deferred finish must not
+// start another attempt. A 1ms retry interval makes that window likely; each
+// round stays under the listen backlog so no connect is refused.
+static void TestNoAttemptAfterConnect() {
+    for (int round = 0; round < 5; round++) {
+        EventLoop loop;
+        int port = PickFreePort();
+        assert(port > 0);
+        auto server = TcpServer::Create(loop);
+        std::vector<std::shared_ptr<TcpClient>> accepted;
+        server->OnConnection([&](std::shared_ptr<TcpClient> client) {
+            accepted.push_back(client);
+        });
+        assert(server->Listen(port));
+
+        const int count = 100;
+        int tries = 0;
+        std::vector<std::shared_ptr<TcpClient>> results;
+        for (int i = 0; i < count; i++) {
+            TcpConnectOptions opts{
+                .host = "127.0.0.1",
+                .port = port,
+                .deadline_ms = 5000,
+                .retry_interval_ms = 1,
+            };
+            TcpConnector::create(
+                loop, std::move(opts),
+                [&](std::shared_ptr<TcpClient> client) {
+                    assert(client);
+                    results.push_back(client);
+                },
+                [&](TcpClient &) { tries++; });
+        }
+
+        auto timer = Timer::create(loop, 10);
+        timer->on_tick([&] {
+            if (static_cast<int>(results.size()) == count) {
+                loop.stop();
+            }
+        });
+        timer->start();
+        loop.run();
+
+        timer->close();
+        for (auto &client : results) {
+            client->close();
+        }
+        for (auto &client : accepted) {
+            client->close();
+        }
+        server->close();
+        loop.run();
+
+        assert(tries == count);
+    }
+}
+
 void TestTcpConnector() {
     TestConnectSuccess();
     TestConnectDeadline();
+    TestMaxAttempts();
     TestTimeoutReleasesGuard();
     TestCancelInFlight();
     TestImmediateCloseServer();
     TestRetryThenSuccess();
+    TestNoAttemptAfterConnect();
 }
 
 } // namespace test

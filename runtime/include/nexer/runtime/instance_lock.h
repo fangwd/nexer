@@ -25,6 +25,8 @@ class InstanceLock : NonCopyable {
     // Returns false with a message when another instance holds the lock or
     // the lock file cannot be created.
     bool acquire(const std::string &config_path, std::string &error);
+    // Whether a process holds the lock for `config_path`.
+    static bool running(const std::string &config_path);
     void release();
 
     inline bool held() const { return fd_ >= 0; }

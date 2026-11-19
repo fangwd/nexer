@@ -627,6 +627,28 @@ std::map<std::string, std::string> Database::scenarios_ = {
         )sql",
     },
     {
+        "recheck-pass",
+        R"sql(
+            insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
+            values ("recheck-pass", "a", 0, "a", 2000, 0),
+                   ("recheck-pass", "b", 0, "b", 0,    1),
+                   ("recheck-pass", "b", 1, "b", 0,    0),
+                   ("recheck-pass", "b", 2, "b", 0,    0)
+        )sql",
+    },
+    {
+        "recheck-fail",
+        R"sql(
+            insert into exec_info(scenario, process, step, message, sleep_time, exit_code)
+            values ("recheck-fail", "a", 0, "a", 2000, 0),
+                   ("recheck-fail", "b", 0, "b", 0,    1),
+                   ("recheck-fail", "b", 1, "b", 0,    0),
+                   ("recheck-fail", "b", 2, "b", 0,    1),
+                   ("recheck-fail", "b", 3, "b", 0,    1),
+                   ("recheck-fail", "b", 4, "b", 0,    0)
+        )sql",
+    },
+    {
         "simple-with-sleep-fail",
         R"sql(
             insert into exec_info(scenario, process, step, message, sleep_time, exit_code)

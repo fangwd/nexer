@@ -1,7 +1,6 @@
 #include "nexer/core/timer.h"
 
 #include "nexer/core/logger.h"
-#include <assert.h>
 
 namespace nexer {
 
@@ -74,7 +73,8 @@ void Timer::close() {
 
 uint64_t Timer::get_elapsed_time() {
     uv_timeval64_t end;
-    assert(uv_gettimeofday(&end) == 0);
+    // Not in assert(): the call must survive NDEBUG. It fails only for null.
+    uv_gettimeofday(&end);
     uint64_t start_ms =
         start_time_.tv_sec * 1000LL + start_time_.tv_usec / 1000;
     uint64_t end_ms = end.tv_sec * 1000LL + end.tv_usec / 1000;
@@ -83,7 +83,8 @@ uint64_t Timer::get_elapsed_time() {
 
 uint64_t Timer::now() {
     uv_timeval64_t now;
-    assert(uv_gettimeofday(&now) == 0);
+    // Not in assert(): the call must survive NDEBUG. It fails only for null.
+    uv_gettimeofday(&now);
     return now.tv_sec * 1000LL + now.tv_usec / 1000;
 }
 

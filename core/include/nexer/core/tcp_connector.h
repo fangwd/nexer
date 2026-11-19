@@ -18,6 +18,7 @@ struct TcpConnectOptions {
     int port = 0;
     uint64_t deadline_ms = 0; // 0 means no deadline
     uint64_t retry_interval_ms = 500;
+    int max_attempts = 0; // 0 means retry until the deadline
 };
 
 class TcpConnector : public std::enable_shared_from_this<TcpConnector>,
@@ -58,6 +59,7 @@ class TcpConnector : public std::enable_shared_from_this<TcpConnector>,
     std::shared_ptr<TcpClient> live_client_;
 
     uint64_t started_ms_ = 0;
+    int attempts_ = 0;
     bool finished_ = false;
     bool attempt_inflight_ = false;
     bool cancel_pending_ = false;

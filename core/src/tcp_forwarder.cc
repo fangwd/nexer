@@ -22,6 +22,9 @@ void TcpForwarder::init(Client *client) {
         if (!self)
             return;
 
+        if (len > 0 && client == &self->incoming_ && self->incoming_filter_) {
+            len = self->incoming_filter_(s, len);
+        }
         if (len > 0) {
             if (self->max_buffer_bytes_ > 0 &&
                 client->data_in->size() + len > self->max_buffer_bytes_) {

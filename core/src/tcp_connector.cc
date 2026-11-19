@@ -101,7 +101,8 @@ void TcpConnector::tick() {
         return;
     }
 
-    if (!attempt_inflight_) {
+    // A pending finish_timer_ means an attempt already connected.
+    if (!attempt_inflight_ && !finish_timer_) {
         try_once();
     }
 }
@@ -142,6 +143,7 @@ void TcpConnector::try_once() {
 
     live_client_ = client;
     attempt_inflight_ = true;
+    attempts_++;
 
     if (on_try_) {
         on_try_(*client);
@@ -215,7 +217,8 @@ void TcpConnector::handle_closed() {
     live_client_.reset();
     attempt_inflight_ = false;
 
-    if (!retry_timer_active_ && !cancel_pending_) {
+    if ((!retry_timer_active_ && !cancel_pending_) ||
+        (options_.max_attempts > 0 && attempts_ >= options_.max_attempts)) {
         finish(nullptr);
     }
 }
@@ -242,7 +245,7 @@ void TcpConnector::finish(std::shared_ptr<TcpClient> result) {
 
     std::shared_ptr<TcpClient> client_result = std::move(result);
 
-    if (!client_result && live_client_) {
+    if (live_client_ && live_client_ != client_result) {
         if (!live_client_->is_closing()) {
             live_client_->close();
         }

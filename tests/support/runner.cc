@@ -28,6 +28,7 @@ void TestFunctionList();
 void TestUrl();
 void TestAdminServer();
 void TestRuntime();
+void TestProxyProtocol();
 
 Task tasks[] = {
     {"async-work", TestAsyncWork},
@@ -38,6 +39,7 @@ Task tasks[] = {
     {"memory-pool", TestMemoryPool},
     {"process", TestProcess},
     {"process-manager", TestProcessManager},
+    {"proxy-protocol", TestProxyProtocol},
     {"auto-start", TestAutoStart},
     {"dummy-servers", TestDummyServers},
     {"startup-rollback", TestStartupRollback},
