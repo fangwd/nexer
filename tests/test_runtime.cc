@@ -87,6 +87,7 @@ struct Runtime {
         static bool curl_ok = curl_global_init(CURL_GLOBAL_DEFAULT) == 0;
         assert(curl_ok);
         setenv(kTokenEnv, kToken, 1);
+        client.bypass_proxy();
         admin_port = PickFreePort();
         assert(admin_port > 0);
 
@@ -245,6 +246,30 @@ static void should_exit_zero_on_sigint() {
     assert(kill(runtime.pid, SIGINT) == 0);
     assert(runtime.WaitExit());
     assert(runtime.exit_code == 0);
+    AssertTreeGone(runtime);
+}
+
+static void should_exit_zero_on_sighup() {
+    Runtime runtime(TreeApp("a"));
+    runtime.Start();
+    assert(runtime.WaitOutput("child="));
+    assert(runtime.WaitReady());
+    assert(kill(runtime.pid, SIGHUP) == 0);
+    assert(runtime.WaitExit());
+    assert(runtime.exit_code == 0);
+    AssertTreeGone(runtime);
+}
+
+// A killed instance cannot clean up; its orphan reaper does, escalating to
+// SIGKILL for the child that ignores SIGTERM.
+static void should_clean_descendants_when_killed() {
+    Runtime runtime(TreeApp("a", "child-ignore-term"));
+    runtime.Start();
+    assert(runtime.WaitOutput("child="));
+    assert(runtime.WaitReady());
+    assert(kill(runtime.pid, SIGKILL) == 0);
+    assert(runtime.WaitExit());
+    assert(runtime.term_signal == SIGKILL);
     AssertTreeGone(runtime);
 }
 
@@ -539,6 +564,27 @@ static void should_control_apps_from_the_cli() {
     AssertTreeGone(runtime);
 }
 
+// A proxy in the environment, often the instance's own, must not capture
+// control commands.
+static void should_control_an_instance_despite_proxy_environment() {
+    Runtime runtime(TreeApp("a"));
+    runtime.Start();
+    assert(runtime.WaitOutput("child="));
+    assert(runtime.WaitReady());
+
+    setenv("http_proxy", "http://127.0.0.1:1", 1);
+    auto status = RunCli(runtime.config_path, {"status"});
+    // The stream stays open, so the timeout ends it.
+    auto follow = RunCli(runtime.config_path, {"logs", "a", "--follow"}, 500);
+    auto shutdown = RunCli(runtime.config_path, {"shutdown"});
+    unsetenv("http_proxy");
+    assert(status.code == 0);
+    assert(follow.output.find("cannot reach") == std::string::npos);
+    assert(shutdown.code == 0);
+    assert(runtime.WaitExit());
+    assert(runtime.exit_code == 0);
+}
+
 static void should_fail_startup_without_admin_token() {
     Runtime runtime(TreeApp("a"));
     unsetenv(kTokenEnv);
@@ -625,6 +671,25 @@ static void should_run_in_the_background() {
 }
 
 // A startup failure is reported by the launching command.
+// The SIGTERM-ignoring child delays the exit until the SIGKILL escalation, so
+// only a waiting shutdown finds the instance gone when it returns.
+static void should_wait_for_a_background_instance_to_exit() {
+    Runtime runtime(TreeApp("a", "child-ignore-term"));
+    auto launch = RunCli(runtime.config_path, {"--daemon"});
+    assert(launch.code == 0);
+    int pid = ParsePid(launch.output, "background (pid ");
+    assert(pid > 0);
+
+    auto shutdown = RunCli(runtime.config_path, {"shutdown", "--wait"});
+    assert(shutdown.code == 0);
+    assert(shutdown.output.find("shutdown: stopped") != std::string::npos);
+    assert(ProcessGone(pid));
+    assert(RunCli(runtime.config_path, {"running"}).code == 1);
+
+    assert(RunCli(runtime.config_path, {"--daemon"}).code == 0);
+    assert(RunCli(runtime.config_path, {"shutdown", "--wait"}).code == 0);
+}
+
 static void should_fail_background_startup_in_the_foreground() {
     Runtime runtime("{ name: broken, command: { file: ./build/does-not-exist "
                     "}, auto_start: true }");
@@ -671,11 +736,14 @@ void TestRuntime() {
 
     should_validate_without_starting_anything();
     should_control_apps_from_the_cli();
+    should_control_an_instance_despite_proxy_environment();
     should_refuse_control_commands_when_admin_is_disabled();
     should_fail_startup_without_admin_token();
     should_run_one_instance_per_config();
     should_exit_zero_on_sigterm_and_clean_descendants();
     should_exit_zero_on_sigint();
+    should_exit_zero_on_sighup();
+    should_clean_descendants_when_killed();
     should_clean_descendants_of_a_leader_that_exits_early();
     should_escalate_to_sigkill_for_descendants_ignoring_term();
     should_shutdown_over_http_and_deliver_the_response();
@@ -686,6 +754,7 @@ void TestRuntime() {
     should_exit_one_on_startup_timeout();
     should_report_readiness_after_checker_passes();
     should_run_in_the_background();
+    should_wait_for_a_background_instance_to_exit();
     should_fail_background_startup_in_the_foreground();
     should_stop_a_background_launch_on_interrupt();
 }

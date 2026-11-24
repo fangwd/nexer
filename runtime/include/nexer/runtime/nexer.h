@@ -47,6 +47,7 @@ class Nexer : public AdminRuntime, NonCopyable {
 
     uv_signal_t sigint_{};
     uv_signal_t sigterm_{};
+    uv_signal_t sighup_{};
     bool signals_installed_ = false;
 
     std::shared_ptr<Timer> startup_timer_;

@@ -163,15 +163,20 @@ bool Nexer::install_signal_handlers() {
     if (status == 0) {
         status = uv_signal_init(loop_, &sigterm_);
     }
+    if (status == 0) {
+        status = uv_signal_init(loop_, &sighup_);
+    }
     if (status != 0) {
         log_error("nexer: uv_signal_init: %s", uv_strerror(status));
         return false;
     }
     sigint_.data = this;
     sigterm_.data = this;
+    sighup_.data = this;
     signals_installed_ = true;
     if ((status = uv_signal_start(&sigint_, on_signal, SIGINT)) != 0 ||
-        (status = uv_signal_start(&sigterm_, on_signal, SIGTERM)) != 0) {
+        (status = uv_signal_start(&sigterm_, on_signal, SIGTERM)) != 0 ||
+        (status = uv_signal_start(&sighup_, on_signal, SIGHUP)) != 0) {
         log_error("nexer: uv_signal_start: %s", uv_strerror(status));
         return false;
     }
@@ -180,7 +185,9 @@ bool Nexer::install_signal_handlers() {
 
 void Nexer::on_signal(uv_signal_t *handle, int signum) {
     auto *self = static_cast<Nexer *>(handle->data);
-    const char *name = signum == SIGINT ? "SIGINT" : "SIGTERM";
+    const char *name = signum == SIGINT   ? "SIGINT"
+                       : signum == SIGHUP ? "SIGHUP"
+                                          : "SIGTERM";
     ShutdownOptions options;
     options.grace_ms = self->config_.admin().shutdown.default_grace_ms;
     options.force_after_ms = self->config_.admin().shutdown.force_after_ms;
@@ -195,7 +202,7 @@ void Nexer::close_signal_handlers() {
         return;
     }
     signals_installed_ = false;
-    for (auto *handle : {&sigint_, &sigterm_}) {
+    for (auto *handle : {&sigint_, &sigterm_, &sighup_}) {
         if (!uv_is_closing(reinterpret_cast<uv_handle_t *>(handle))) {
             uv_signal_stop(handle);
             uv_close(reinterpret_cast<uv_handle_t *>(handle), nullptr);

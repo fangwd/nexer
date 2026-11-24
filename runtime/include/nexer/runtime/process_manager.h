@@ -5,6 +5,7 @@
 #include "nexer/core/function_list.h"
 #include "nexer/core/timer.h"
 #include "nexer/runtime/config.h"
+#include "nexer/runtime/orphan_reaper.h"
 #include "nexer/runtime/output_file.h"
 #include "nexer/runtime/process.h"
 #include <deque>
@@ -142,6 +143,9 @@ class ProcessManager {
     bool shutting_down_ = false;
     std::vector<std::function<void(bool)>> shutdown_waiters_;
     uint64_t force_after_ms_ = 30000;
+    // Covers every owned process group in case this process dies before
+    // stopping it.
+    OrphanReaper orphan_reaper_;
 
     App &GetApp(const config::App &);
     ProcessSnapshot Snapshot(const App &) const;

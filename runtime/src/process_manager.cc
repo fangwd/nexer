@@ -395,6 +395,7 @@ void ProcessManager::RunStopCommand(App &app) {
             });
         });
     if (process->start()) {
+        orphan_reaper_.track(process->pid(), force_after_ms_);
         on_process_start_.invoke(process);
         StartKillTimer(app, process);
     }
@@ -824,6 +825,7 @@ void ProcessManager::Spawn(App &app) {
     if (!process->start()) {
         return;
     }
+    orphan_reaper_.track(process->pid(), force_after_ms_);
     on_process_start_.invoke(process);
     Emit(app);
 
@@ -993,6 +995,7 @@ void ProcessManager::RunCheck(App &app, uint64_t generation,
     });
 
     if (process->start()) {
+        orphan_reaper_.track(process->pid(), force_after_ms_);
         on_process_start_.invoke(process);
     }
 }

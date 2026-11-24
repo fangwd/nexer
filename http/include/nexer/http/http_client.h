@@ -27,6 +27,8 @@ class HttpClient {
     ~HttpClient();
 
     void set_follow(bool);
+    // Connects directly, ignoring proxy environment variables.
+    void bypass_proxy();
     void clear_headers();
     void add_header(const std::string &header);
 

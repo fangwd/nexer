@@ -49,9 +49,11 @@ export NEXER_ADMIN_TOKEN='replace-with-your-secret'
 ./build/nexer
 ```
 
-Nexer starts the API before the web app and stays in the foreground. Ctrl-C or
-SIGTERM shuts down owned processes and their descendants. Startup failures
-clean up and exit 1. Duplicate instances using the same config are rejected.
+Nexer starts the API before the web app and stays in the foreground. Ctrl-C,
+SIGTERM or SIGHUP shuts down owned processes and their descendants. If Nexer
+is killed outright (`kill -9`) or crashes, a helper process terminates them
+instead. Startup failures clean up and exit 1. Duplicate instances using the
+same config are rejected.
 
 `nexer --daemon` (`-d`) returns once startup succeeds and keeps running in the
 background; a startup failure, or an interrupt before then, stops it and exits
@@ -71,13 +73,13 @@ In another terminal, set the same `NEXER_ADMIN_TOKEN` and use the same config:
 ./build/nexer start api --wait
 ./build/nexer stop api --wait
 ./build/nexer restart api --wait
-./build/nexer shutdown
+./build/nexer shutdown --wait
 ```
 
 Controls require the admin listener. `validate` only parses the config and
 starts nothing; `running` exits 0 while an instance runs for the config.
-`--wait` waits for the operation result and exits nonzero on failure. A
-deliberate stop blocks automatic restarts and proxy-triggered starts until an
+`--wait` waits for the operation result and exits nonzero on failure; with
+`shutdown` it returns once the instance has exited. A deliberate stop blocks automatic restarts and proxy-triggered starts until an
 explicit start or restart.
 
 Use `--config /path/to/nexer.conf` **before** the command to select another

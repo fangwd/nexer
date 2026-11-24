@@ -192,6 +192,7 @@ add_library(nexer_runtime STATIC
   runtime/src/config.cc
   runtime/src/instance_lock.cc
   runtime/src/nexer.cc
+  runtime/src/orphan_reaper.cc
   runtime/src/output_file.cc
   runtime/src/process.cc
   runtime/src/process_manager.cc

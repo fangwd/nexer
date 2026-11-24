@@ -86,6 +86,13 @@ void HttpClient::set_follow(bool follow) {
     curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, follow ? 1L : 0L);
 }
 
+void HttpClient::bypass_proxy() {
+    if (!curl_) {
+        return;
+    }
+    curl_easy_setopt(curl_, CURLOPT_NOPROXY, "*");
+}
+
 HttpClient::HttpClient() : curl_(nullptr), slist_(nullptr) { reset(); }
 
 HttpClient::~HttpClient() {

@@ -49,7 +49,7 @@ static void print_usage(const char *prog) {
     fprintf(stderr, "  start <app> [--wait]   Start an app\n");
     fprintf(stderr, "  stop <app> [--wait]    Stop an app\n");
     fprintf(stderr, "  restart <app> [--wait] Restart an app\n");
-    fprintf(stderr, "  shutdown             Stop the running instance\n");
+    fprintf(stderr, "  shutdown [--wait]      Stop the running instance\n");
 }
 
 namespace {
@@ -93,6 +93,9 @@ class Control {
   public:
     Control(nexer::Config &config, std::string config_path)
         : config_(config), config_path_(std::move(config_path)) {
+        // The admin listener is local; a proxy from the environment (often
+        // this instance's own) cannot reach it.
+        client_.bypass_proxy();
         auto &admin = config_.admin();
         base_url_ = "http://" + admin.bind + ":" + std::to_string(admin.port);
         if (!admin.auth_token_env.empty()) {
@@ -166,6 +169,7 @@ class Control {
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, stream_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &pending);
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+        curl_easy_setopt(curl, CURLOPT_NOPROXY, "*");
         auto result = curl_easy_perform(curl);
         long status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
@@ -276,7 +280,8 @@ int command_control(Control &control, const std::string &verb,
     }
 }
 
-int command_shutdown(Control &control) {
+int command_shutdown(Control &control, const std::string &config_path,
+                     bool wait) {
     std::string payload;
     int status = control.request("POST", "/admin/shutdown", payload,
                                  "{\"reason\":\"nexer shutdown command\"}");
@@ -285,6 +290,14 @@ int command_shutdown(Control &control) {
     }
     jsini::Value json(payload);
     printf("shutdown: %s\n", (const char *)json["status"]);
+    if (!wait) {
+        return 0;
+    }
+    // The instance holds its lock until it exits.
+    while (nexer::InstanceLock::running(config_path)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    printf("shutdown: stopped\n");
     return 0;
 }
 
@@ -518,7 +531,7 @@ int main(int argc, char **argv) {
     } else if (command == "logs") {
         status = command_logs(control, target, follow);
     } else if (command == "shutdown") {
-        status = command_shutdown(control);
+        status = command_shutdown(control, config_path, wait);
     } else {
         status = command_control(control, command, target, wait);
     }
